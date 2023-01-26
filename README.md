@@ -50,11 +50,9 @@ To run TODO App in development mode; Just use steps below:
     }
 
 4. You can view all your Current todo with this API. (token require)
-    URL = `http://127.0.0.1:5000/api/v1/todos`
+    URL = `http://127.0.0.1:5000/api/v1/todos/?status=OnGoing`
     Method = `GET`
-    {
-        "status":"filter by status" `Optionaly you can set status one of these ('NotStarted','OnGoing','Completed') if status send empty you will get all your TODOS`
-    }
+    "status":"filter by status" `Optionaly you can set status one of these ('NotStarted','OnGoing','Completed') if status send empty you will get all your TODOS`
 
 5. To create new TODO you can use this API. (token require)
     URL = `http://127.0.0.1:5000/api/v1/todos`
