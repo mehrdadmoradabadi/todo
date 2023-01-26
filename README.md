@@ -84,4 +84,4 @@ To run TODO App in development mode; Just use steps below:
 
 ## Run tests
 
-To run tests in Bestoon simply use `test.py`.
+To run tests in TODO app simply use `test.py`.
