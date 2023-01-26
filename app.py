@@ -271,4 +271,8 @@ def changePassword(currentUser):
 if __name__=='__main__':
     with app.app_context():
         db.create_all()
+<<<<<<< HEAD
     app.run('0.0.0.0',debug=False,port=5000)
+=======
+    app.run('0.0.0.0',debug=False)
+>>>>>>> 079454e98624b203539df87303e0e8cc5ccd055c
