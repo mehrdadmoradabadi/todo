@@ -1,12 +1,14 @@
 try:
     import enum
-    import hashlib
-    from datetime import datetime, timedelta
+    from datetime import datetime
     from functools import wraps
 
     import jwt
-    from flask import Flask, jsonify, make_response, request, session
+    from flasgger import Swagger
+    from flask import Flask, jsonify, request
     from flask_sqlalchemy import SQLAlchemy
+    from todoManagement.todoManager import Todos
+    from userManagement.userManagement import Users
 
     from config import configs, secretKey
 except: raise Exception('Please install required packages from requirement.txt')
@@ -16,6 +18,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = f"postgresql://{configs['postgresUsernam
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] =False
 db.init_app(app)
 app.config['SECRET_KEY'] = secretKey
+swagger = Swagger(app)
 
 def tokenRequired(func):
     @wraps(func)
@@ -69,97 +72,203 @@ class Todo(db.Model):
         self.UpdatedTimestamp=UpdatedTimestamp
         self.Status=Status
         self.UserId=UserId
-
-@app.route('/api/v1/todos',methods=['GET','POST','PUT','DELETE'])
+@app.route('/api/v1/todos/',methods=['GET'])
 @tokenRequired
-def todos(currentUser):
+def todosget(currentUser)->object:
+    """
+    Get all your TODOs. accepts a json object in the body and a x-access-token then returns a Message.
+    ---
+    parameters:
+      - in: header
+        name: x-access-token
+        type: string
+        required: true
+        description:  For authentication
+      - in: query
+        name: status
+        type: string
+        example: "OnGoing"
+            
+    responses:
+      200:
+        description: This will return Todos based on your status. if there is no status you will get all todos as object!
+    """
+    if request.args and 'status' in request.args:
+        status =request.args['status']
+    else:status =" "
+    return Todos.todo(status,request.method,Todo,currentUser,db,Status)
+@app.route('/api/v1/todos',methods=['POST'])
+@tokenRequired
+def todospost(currentUser):
+    """
+    Create a new Todo accepts a json object in the body and a x-access-token then returns a Message
+    ---
+    parameters:
+      - in: header
+        name: x-access-token
+        type: string
+        required: true
+        description:  For authentication
+      - in: body
+        name: body
+        schema:
+          type: object
+          properties:
+            name:
+              type: string
+              example: "name of your todo"
+            description:
+              type: string
+              example: "some description"
+            status:
+              type: string
+              example: "OnGoing"
+    responses:
+      200:
+        description: This will return a success message !
+    """
     reqData =  request.get_json()
-    match (request.method):
-        case 'GET':
-            response = []
-            if 'status' not in reqData or not reqData['status'] or reqData['status'] not in Status._member_names_ :
-                allTodos=Todo.query.filter_by(UserId = currentUser.Id).all()
-                for todo in allTodos:
-                    response.append({"Id":todo.Id,"Name":todo.Name,"Description":todo.Description,"Username":currentUser.Email,"Status":todo.Status.value})
-                return jsonify({"message":f"No status found. this is all your Todos :{str(response)}"})
-            allTodos = Todo.query.filter_by(Status = reqData['status'],UserId = currentUser.Id).all()
-            for todo in allTodos:
-                response.append({"Id":todo.Id,"Name":todo.Name,"Description":todo.Description,"Username":currentUser.Email,"Status":todo.Status.value})
-            return jsonify({"message":str(response)})
-        case 'POST':
-            try:
-                newTodo =Todo(reqData['name'],reqData['description'],currentUser.Id,str(datetime.now()),str(datetime.now()),reqData['status'])
-                db.session.add(newTodo)
-                db.session.commit()
-                return(jsonify({"message":"successful. new TODO added"}))
-            except: return(jsonify({"message":"Something went wrong Please check your input! you need name, description and status to create a TODO!"}))
-        case 'PUT':
-            try:
-                if 'status' not in reqData or not reqData['status'] or reqData['status'] not in Status._member_names_:
-                    return jsonify({'message':f'Status condition has 3 condition please use one: {Status._member_names_}'})
-                updateTodo = Todo.query.filter_by(Id = reqData['id'],UserId = currentUser.Id).first()
-                updateTodo.Name = reqData['name']
-                updateTodo.Description = reqData['description']
-                updateTodo.Status = reqData['status']
-                updateTodo.UpdatedTimestamp = datetime.now()
-                db.session.commit()
-                return jsonify({'message':'Todo updated successfully!'})
-            except: return(jsonify({"message":"Something went wrong Please check your input! you need name, description,id and status to update a TODO!"}))
-
-        case 'DELETE':
-            try:
-                deleteTodo = Todo.query.filter_by(Id = reqData['id'],UserId = currentUser.Id).first()
-                if not deleteTodo:
-                    return jsonify({'message':'Wrong todo Id. Please try again!'})
-                db.session.delete(Todo.query.filter_by(Id = reqData['id']).first())
-                db.session.commit()
-                return jsonify({'message':'Todo deleted successfully!'})
-            except: return(jsonify({"message":"Something went wrong Please check your input! you need send todo id to delete a TODO!"}))
+    return Todos.todo(reqData,request.method,Todo,currentUser,db,Status)
+@app.route('/api/v1/todos',methods=['PUT'])
+@tokenRequired
+def todosput(currentUser):
+    """
+    Change or update your Todo. accepts a json object in the body and a x-access-token then returns a Message
+    ---
+    parameters:
+      - in: header
+        name: x-access-token
+        type: string
+        required: true
+        description:  For authentication
+      - in: body
+        name: body
+        schema:
+          type: object
+          properties:
+            id:
+              type: string
+              example: "2"
+            name:
+              type: string
+              example: "name of your todo"
+            description:
+              type: string
+              example: "some description"
+            status:
+              type: string
+              example: "OnGoing"
+    responses:
+      200:
+        description: This will return a success message !
+    """
+    reqData =  request.get_json()
+    return Todos.todo(reqData,request.method,Todo,currentUser,db,Status)
+@app.route('/api/v1/todos',methods=['DELETE'])
+@tokenRequired
+def todosdel(currentUser):
+    """
+    Delete a Todo. accepts a json object in the body and a x-access-token then returns a Message
+    ---
+    parameters:
+      - in: header
+        name: x-access-token
+        type: string
+        required: true
+        description:  For authentication
+      - in: body
+        name: body
+        schema:
+          type: object
+          properties:
+            id:
+              type: string
+              example: "2"
+    responses:
+      200:
+        description: This will return a notice message !
+    """
+    reqData =  request.get_json()
+    return Todos.todo(reqData,request.method,Todo,currentUser,db,Status)
 @app.route('/api/v1/signup',methods=['POST'])
 def signup():
+    """
+    Signup in to TODOapp accepts a json object in the body and returns a Message
+    ---
+    parameters:
+      - in: body
+        name: body
+        schema:
+          type: object
+          properties:
+            email:
+              type: string
+              example: "email@domain.com"
+            password:
+              type: string
+              example: "somepassword"
+    responses:
+      200:
+        description: This will return a login message. in case of duplicate email you will get an alert!
+    """
     reqData =  request.get_json()
-    try:
-        email = reqData['email']
-        plainPassword = reqData['password']
-        hashPassword = hashlib.md5(plainPassword.encode()).hexdigest()
-        print(session.values())
-        db.session.add(Todouser(email,hashPassword,str(datetime.now()),str(datetime.now())))
-        db.session.commit()
-        return(jsonify({"message":"successful. Now you can login"}))
-    except: return(jsonify({"message":"Something went wrong Please check your input! you need Email and Password to signup"}))
+    return Users.signup(db ,reqData,Todouser)
 @app.route('/api/v1/signin',methods=['POST'])
 def signin():
+    """
+    Signing in to TODOapp accepts a json object in the body and returns a TOKEN
+    ---
+    parameters:
+      - in: body
+        name: body
+        schema:
+          type: object
+          properties:
+            email:
+              type: string
+              example: "email@domain.com"
+            password:
+              type: string
+              example: "somepassword"
+    responses:
+      200:
+        description: This will return a "x-access-token" you will need this token
+    """
     reqData =  request.get_json()
-    try:
-        plainPassword = reqData['password']
-        hashPassword = hashlib.md5(plainPassword.encode()).hexdigest()
-        user = Todouser.query.filter_by(Email = reqData['email']).first()
-        if user and hashPassword == user.Password:
-            session['logged_in']=True
-            payload = {'expiration' : str(datetime.now() + timedelta(minutes=30)),
-                        'email': reqData['email'],
-                        }
-            return jsonify({"x-access-token": jwt.encode(payload, 
-                app.config['SECRET_KEY'],
-                algorithm='HS256'
-                )})
-        else:
-            return make_response('Unable to verify' ,403)
-    except: return(jsonify({"message":"Something went wrong Please check your input! you need email and password to signin"}))
+    return Users.signin(reqData,Todouser,app)
 @app.route('/api/v1/changePassword',methods=['PUT'])
 @tokenRequired
 def changePassword(currentUser):
-    try:
-        reqData =  request.get_json()
-        hashPassword = hashlib.md5(reqData['oldpassword'].encode()).hexdigest()
-        if hashPassword == currentUser.Password and reqData['newpassword'] == reqData['confirmpassword']:
-            currentUser.Password = hashlib.md5(reqData['newPassword'].encode()).hexdigest()
-            db.session.commit()
-        else:
-            return jsonify({"message":"try again. wrong input"})
-        return jsonify({"message":"password successfully changed"})
-    except: return(jsonify({"message":"Something went wrong Please check your input! you need 'oldpassword','newpassword','confirmpassword' to change your password!"}))
+    """
+    Change your password in to TODOapp accepts a json object in the body and a x-access-token then returns a Message
+    ---
+    parameters:
+      - in: header
+        name: x-access-token
+        type: string
+        required: true
+        description:  For authentication
+      - in: body
+        name: body
+        schema:
+          type: object
+          properties:
+            oldpassword:
+              type: string
+              example: "oldpassword"
+            newpassword:
+              type: string
+              example: "newpassword"
+            confirmpassword:
+              type: string
+              example: "confirmpassword"
+    responses:
+      200:
+        description: This will return a notice message !
+    """
+    reqData =  request.get_json()
+    return Users.changePassword(reqData,currentUser,db)
 if __name__=='__main__':
     with app.app_context():
         db.create_all()
-    app.run('0.0.0.0',debug=True)
+    app.run('0.0.0.0',debug=False,port=5000)

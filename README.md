@@ -1,7 +1,10 @@
 
-# TODO
+# TODO app
 
 A simple TODO Application writen with flask.
+This app has swagger documention accessable through :`/apidocs` .
+You can  use the `test.py` to check the api functionality.
+
 
 ## How to run
 
