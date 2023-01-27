@@ -15,7 +15,7 @@ To run TODO App in development mode; Just use steps below:
 3. Make development environment ready using commands below;
 
   ```bash
-  git clone https://github.com/ && cd todo
+  git clone [https://github.com/](https://github.com/mehrdadmoradabadi/todo) && cd todo
   pip install -r requirements.txt
   ```
 4. Install postgre and create a database for TODO app.
